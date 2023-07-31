@@ -1,4 +1,4 @@
-from model import OneLine, Batch
+from model import OrderLine, Batch
 from datetime import date, timedelta
 import pytest
 
@@ -13,9 +13,9 @@ later = tomorrow + timedelta(days=10)
 def make_batch_and_line(sku, batch_qty, line_qty):
     return (
         # 배치 명, 상품 명 (SKU), 갯수, 날짜
-        Batch("batch-001", "SMALL-TABLE", qty=20, eta=today),
+        Batch("batch-001", sku=sku, qty=batch_qty, eta=today),
         # order 명, 상품명, 갯수
-        OneLine("order-ref", "SMALL-TABLE", 2),
+        OrderLine("order-ref", sku=sku, qty=line_qty),
     )
 
 
@@ -39,6 +39,19 @@ def test_cannot_allocate_if_available_smaller_than_required():
 def test_can_allocate_if_available_equal_to_required():
     batch, line = make_batch_and_line("SMALL-TABLE", 2, 2)
     assert batch.can_allocate(line)
+
+
+def test_can_only_deallocate_allocated_lines():
+    batch, unallocated_line = make_batch_and_line("DECORATIVE-TRINKET", 20, 2)
+    batch.deallocate(unallocated_line)
+    assert batch.available_quantity == 20
+
+
+def test_allocation_is_idempotent():
+    batch, line = make_batch_and_line("ANGULAR-DESK", 20, 2)
+    batch.allocate(line)
+    batch.allocate(line)
+    assert batch.available_quantity == 16
 
 
 def test_prefers_warehouse_batches_to_shipments():
