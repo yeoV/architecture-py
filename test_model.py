@@ -1,4 +1,4 @@
-from model import OrderLine, Batch
+from model import OrderLine, Batch, allocate
 from datetime import date, timedelta
 import pytest
 
@@ -54,9 +54,26 @@ def test_allocation_is_idempotent():
     assert batch.available_quantity == 16
 
 
-def test_prefers_warehouse_batches_to_shipments():
-    pytest.fail("todo")
-
-
+# 가장 빠른 배치 참조 테스트 함수
 def test_prefers_earlier_batches():
-    pytest.fail("todo")
+    earliest = Batch("Speedy-batch", "MINIMALIST-SPOON", 100, eta=today)
+    medium = Batch("Normal-batch", "MINIMALIST-SPOON", 100, eta=tomorrow)
+    latest = Batch("slow-batch", "MINIMALIST-SPOON", 100, eta=later)
+    line = OrderLine("order1", "MINIMALIST", 10)
+
+    # model 에서 구현한 eta 빠른 순서대로 정렬
+    allocate(line, [earliest, medium, latest])
+
+    assert earliest.available_quantity == 90
+    assert medium.available_quantity == 100
+    assert latest.available_quantity == 100
+
+
+# test return allocated batch ref
+def test_returns_allocated_batch_ref():
+    in_stock_batch = Batch("in-stock-batch-ref", "HIGHBROW-POSTER", 100, eta=None)
+    shipment_batch = Batch("shipment-batch-ref", "HIGHBROW-POSTER", 100, eta=tomorrow)
+    line = OrderLine("oref", "in-stock-batch-ref", 10)
+
+    allocation = allocate(line, [in_stock_batch, shipment_batch])
+    assert allocation == in_stock_batch.reference
